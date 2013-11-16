@@ -1,3 +1,4 @@
 *.c.js
 *~
 *.js.map
+build/
