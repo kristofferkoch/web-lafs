@@ -25,6 +25,8 @@ console.log(map)
 		var u32 = new stdlib.Uint32Array(heap);
 		var u8  = new stdlib.Uint8Array(heap);
 		var fill = 0;
+		var bitsize_lo = 0;
+		var bitsize_hi = 0;
 		var Hinit = foreign.Hinit|0;
 		var H = foreign.H|0;
 		var W = foreign.W|0;
@@ -35,6 +37,8 @@ console.log(map)
 				u32[(H + (i<<2))>>2] = u32[(Hinit + (i<<2))>>2]|0;
 			}
 			fill = 0;
+			bitsize_hi = 0;
+			bitsize_lo = 0;
 			return;
 		}
 		function rightrotate(val, amount) {
@@ -123,6 +127,7 @@ console.log(map)
 		function update(data, len) {
 			data = data|0;
 			len = len|0;
+			var new_bitsize_lo = 0;
 			var i = 0;
 			for (i = 0; (i|0) < (len|0); i = (i + 1)|0) {
 				u8[(W + fill)|0] = u8[(data + i)|0]|0;
@@ -132,16 +137,39 @@ console.log(map)
 					hashchunk();
 				}
 			}
+			new_bitsize_lo = (bitsize_lo + ((8*len)|0))|0;
+			if ((new_bitsize_lo|0) < (bitsize_lo|0)) {
+				bitsize_hi = (bitsize_hi + 1)|0;
+			}
+			bitsize_lo = new_bitsize_lo;
 			return;
 		}
 		function finish() {
 			var i = 0;
-			u8[(320+fill)|0] = 0x80;
+			u8[(W+fill)|0] = 0x80;
 			fill = (fill + 1)|0;
-			while ((fill|0) != 64) {
-				u8[(320+fill)|0] = 0;
+			if (((fill + 8)|0) > 64) {
+				while ((fill|0) != 64) {
+					u8[(W+fill)|0] = 0;
+					fill = (fill + 1)|0;
+				}
+				fill = 0;
+				hashchunk();
+			}
+			//console.log("length",fill,bitsize_hi, bitsize_lo)
+			while ((fill|0) != 56) {
+				u8[(W+fill)|0] = 0;
 				fill = (fill + 1)|0;
 			}
+			u8[(W+56)|0] = (bitsize_hi>>24) & 0xff;
+			u8[(W+57)|0] = (bitsize_hi>>16) & 0xff;
+			u8[(W+58)|0] = (bitsize_hi>> 8) & 0xff;
+			u8[(W+59)|0] = (bitsize_hi    ) & 0xff;
+			u8[(W+60)|0] = (bitsize_lo>>24) & 0xff;
+			u8[(W+61)|0] = (bitsize_lo>>16) & 0xff;
+			u8[(W+62)|0] = (bitsize_lo>> 8) & 0xff;
+			u8[(W+63)|0] = (bitsize_lo    ) & 0xff;
+			
 			hashchunk();
 			return;
 		}
@@ -171,8 +199,8 @@ console.log(map)
 	}
 	window.sha256 = function(str) {
 		asm.init();
-		//u8.set(str, ptr);
-		//asm.update(ptr, str.length);
+		u8.set(str, ptr);
+		asm.update(ptr, str.length);
 		asm.finish();
 		console.log(u32.subarray(map.W>>2, (map.W+64*4)>>2));
 		return toHex(u8.subarray(map.H, map.H+32));
