@@ -1,4 +1,4 @@
-(function(){
+(function(global){
 	"use strict";
 
 	var ptr = 0;
@@ -8,7 +8,7 @@
 	map.K = ptr; ptr += 64*4;
 	map.H = ptr; ptr += 8*4;
 	map.W = ptr; ptr += 64*4;
-	var heap = new ArrayBuffer(4096);
+	var heap = new ArrayBuffer(2*1024*1024);
 	var u32 = new Uint32Array(heap);
 	u32.set([0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19], map.Hinit>>2);
 	u32.set([0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
@@ -19,7 +19,7 @@
 	         0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
 	         0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
 	         0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2], map.K>>2);
-console.log(map)
+
 	function module(stdlib, foreign, heap) {
 		"use asm";
 		var u32 = new stdlib.Uint32Array(heap);
@@ -177,8 +177,8 @@ console.log(map)
 				update: update,
 				finish: finish};
 	}
-	var asm = module(window, map, heap);
-	var u8 = new window.Uint8Array(heap);
+	var asm = module(global, map, heap);
+	var u8 = new global.Uint8Array(heap);
 	var HEX = "0123456789abcdef";
 	/*function toHex(i) {
 		var j, ret = "";
@@ -197,7 +197,8 @@ console.log(map)
 		}
 		return ret;
 	}
-	window.sha256 = function(str) {
+	global.sha256 = {};
+	global.sha256.sha256 = function(str) {
 		asm.init();
 		u8.set(str, ptr);
 		asm.update(ptr, str.length);
@@ -205,4 +206,13 @@ console.log(map)
 		console.log(u32.subarray(map.W>>2, (map.W+64*4)>>2));
 		return toHex(u8.subarray(map.H, map.H+32));
 	};
-})();
+	global.sha256.init = function() {asm.init();};
+	global.sha256.update = function(buffer) {
+		u8.set(buffer, ptr);
+		asm.update(ptr, buffer.byteLength);
+	};
+	global.sha256.finish = function() {
+		asm.finish();
+		return toHex(u8.subarray(map.H, map.H+32));
+	};
+})(this);
