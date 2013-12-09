@@ -5,29 +5,30 @@
 	$("#file").on("change", function(e) {
 		// Process file(s) when user has selected
 		var work = $("#work");
+		var start_time = new Date().getTime();
 		$.each(e.target.files, function(i, file) {
-			console.log("%d %o", i, file);
+			//console.log("%d %o", i, file);
 			// Make a web worker, and ping-pong data to it.
 			// Ping=hand over data slice. Pong=ack, please send more
-			var worker = new Worker("filetest-worker.js");
+			var worker = new Worker("sha256file-worker.js");
 			var position = 0, sent_position = 0;
 			var seq = 0;
 			var reader = new FileReader();
-			var div = $("<div/>");
+			var fix = $("<span/>").css("font-family", "monospace").text("starting...");
+			var div = $("<div/>").text(file.name+": ").append(fix);
 			work.append(div);
 
 			worker.addEventListener("message", function(e) {
 				if (e.data.type === "ack") {
 					console.log("'%s' progress: %.02f%", file.name, (100.0*e.data.position)/file.size);
-					div.text(file.name + ": "+(Math.round((10000.0*e.data.position)/file.size)/100.0)+"%");
+					fix.text(Math.round(100.0*e.data.position/file.size)+"%");
 					sendslice();
 				}
 				else if (e.data.type === "done") {
 					console.log("'%s' done Hash: %o", file.name, e.data.hash);
-					div.empty();
-					(div.append(file.name+": ")
-					    .append($("<span/>").css("font-family", "monospace").text(e.data.hash))
-					    .append(" Size: "+Math.round(file.size/MiB)+ " MiB"));
+					fix.text(e.data.hash);
+					div.append(" Size: "+Math.round(file.size/MiB)+ " MiB");
+					div.append(" " + Math.round(file.size/(new Date().getTime() - start_time)) + " kB/s")
 					// Delete stuff? TODO: check if we leak memory
 				}
 				else {
